@@ -1,5 +1,7 @@
 'use strict';
 
-import ViewTransformer from './transform/ViewTransformer';
+import view from './transform/ViewTransformer';
+import Image from './transform/TransformableImage';
 
-export default ViewTransformer;
+export const ViewTransformer = view;
+export const TransformableImage = Image;

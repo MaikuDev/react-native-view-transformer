@@ -7,7 +7,7 @@ import ReactNative, {
   Easing,
   NativeModules
 } from 'react-native';
-
+import PropTypes from 'prop-types';
 import {createResponder} from 'react-native-gesture-responder';
 import Scroller from 'react-native-scroller';
 import {Rect, Transform, transformedRect, availableTranslateSpace, fitCenterRect, alignedRect, getTransform} from './TransformUtils';
@@ -36,11 +36,12 @@ export default class ViewTransformer extends React.Component {
     };
     this._viewPortRect = new Rect(); //A holder to avoid new too much
 
+    this.transform = {};
     this.cancelAnimation = this.cancelAnimation.bind(this);
     this.contentRect = this.contentRect.bind(this);
     this.transformedContentRect = this.transformedContentRect.bind(this);
     this.animate = this.animate.bind(this);
-
+    this.tapPosition = {};
     this.scroller = new Scroller(true, (dx, dy, scroller) =>{
       if (dx === 0 && dy === 0 && scroller.isFinished()) {
         this.animateBounce();
@@ -89,13 +90,17 @@ export default class ViewTransformer extends React.Component {
       onResponderRelease: this.onResponderRelease.bind(this),
       onResponderTerminate: this.onResponderRelease.bind(this),
       onResponderTerminationRequest: (evt, gestureState) => false, //Do not allow parent view to intercept gesture
-      onResponderSingleTapConfirmed: (evt, gestureState) => {
-        this.props.onSingleTapConfirmed && this.props.onSingleTapConfirmed();
-      }
+      onResponderSingleTapConfirmed: this.onSingleTapConfirmed.bind(this)
     });
   }
 
   componentDidUpdate(prevProps, prevState) {
+    this.transform = {
+      scale: this.state.scale,
+      translateX: this.state.translateX,
+      translateY: this.state.translateY
+    };
+    
     this.props.onViewTransformed && this.props.onViewTransformed({
       scale: this.state.scale,
       translateX: this.state.translateX,
@@ -209,6 +214,10 @@ export default class ViewTransformer extends React.Component {
     return true;
   }
 
+  onSingleTapConfirmed(evt, gestureState){
+    this.props.onSingleTapConfirmed && this.props.onSingleTapConfirmed(evt, gestureState, this.tapPosition)
+  }
+
   onResponderRelease(evt, gestureState) {
     let handled = this.props.onTransformGestureReleased && this.props.onTransformGestureReleased({
         scale: this.state.scale,
@@ -219,21 +228,25 @@ export default class ViewTransformer extends React.Component {
       return;
     }
 
+    let pivotX = 0, pivotY = 0;
+    if (gestureState.dx || gestureState.dy) {
+      pivotX = gestureState.moveX - this.state.pageX;
+      pivotY = gestureState.moveY - this.state.pageY;
+    } else {
+      pivotX = gestureState.x0 - this.state.pageX;
+      pivotY = gestureState.y0 - this.state.pageY;
+    }
+      
+    this.tapPosition = {
+      x: pivotX,
+      y: pivotY
+    }
 
     if (gestureState.doubleTapUp) {
       if (!this.props.enableScale) {
         this.animateBounce();
         return;
       }
-      let pivotX = 0, pivotY = 0;
-      if (gestureState.dx || gestureState.dy) {
-        pivotX = gestureState.moveX - this.state.pageX;
-        pivotY = gestureState.moveY - this.state.pageY;
-      } else {
-        pivotX = gestureState.x0 - this.state.pageX;
-        pivotY = gestureState.y0 - this.state.pageY;
-      }
-
       this.performDoubleTapUp(pivotX, pivotY);
     } else {
       if(this.props.enableTranslate) {
@@ -243,11 +256,6 @@ export default class ViewTransformer extends React.Component {
       }
     }
   }
-
-
-
-
-
 
   performFling(vx, vy) {
     let startX = 0;
@@ -421,36 +429,36 @@ ViewTransformer.propTypes = {
   /**
    * Use false to disable transform. Default is true.
    */
-  enableTransform: React.PropTypes.bool,
+  enableTransform: PropTypes.bool,
 
   /**
    * Use false to disable scaling. Default is true.
    */
-  enableScale: React.PropTypes.bool,
+  enableScale: PropTypes.bool,
 
   /**
    * Use false to disable translateX/translateY. Default is true.
    */
-  enableTranslate: React.PropTypes.bool,
+  enableTranslate: PropTypes.bool,
 
   /**
    * Default is 20
    */
-  maxOverScrollDistance: React.PropTypes.number,
+  maxOverScrollDistance: PropTypes.number,
 
-  maxScale: React.PropTypes.number,
-  contentAspectRatio: React.PropTypes.number,
+  maxScale: PropTypes.number,
+  contentAspectRatio: PropTypes.number,
 
   /**
    * Use true to enable resistance effect on over pulling. Default is false.
    */
-  enableResistance: React.PropTypes.bool,
+  enableResistance: PropTypes.bool,
 
-  onViewTransformed: React.PropTypes.func,
+  onViewTransformed: PropTypes.func,
 
-  onTransformGestureReleased: React.PropTypes.func,
+  onTransformGestureReleased: PropTypes.func,
 
-  onSingleTapConfirmed: React.PropTypes.func
+  onSingleTapConfirmed: PropTypes.func
 };
 ViewTransformer.defaultProps = {
   maxOverScrollDistance: 20,
